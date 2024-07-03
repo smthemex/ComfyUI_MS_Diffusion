@@ -1,0 +1,15 @@
+[project]
+name = "comfyui_ms_diffusion"
+description = "you can make story in comfyUI using MS-diffusion"
+version = "1.0.0"
+license = "LICENSE"
+dependencies = ["tensorboard", "scipy", "opencv-python", "PyYAML"]
+
+[project.urls]
+Repository = "https://github.com/smthemex/ComfyUI_MS_Diffusion"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "smthemx"
+DisplayName = "ComfyUI_MS_Diffusion"
+Icon = ""
