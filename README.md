@@ -65,7 +65,8 @@ if you want to use menu, encoder model "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k
 3.2 offline  
 If the address is not in the default C drive category, you can fill in the absolute address of the diffusion model in the "path" column, which must be "/"   
     
-Fill in the absolute path of your local clip model in the "laion/CLIP ViT bigG-14-laion2B-39B-b160k" column, using "/". Please refer to the file structure demonstration below for the required files.        
+Fill in the absolute path of your local clip model in the "laion/CLIP ViT bigG-14-laion2B-39B-b160k" column, using "/".    
+Please refer to the file structure demonstration below for the required files.        
 ```
 ├── ComfyUI/custom_nodes/ComfyUI_StoryDiffusion/
 |      ├──weights/
@@ -117,6 +118,8 @@ Control_img image preprocessing, please use other nodes
 --- The default scene prompt includes three modes: double(double[ ]), single(single[ ), and unmanned([NC]).    
 ---The character prompt must have [name], which can be man, dog, panda, and so on.       
 ---When using ControlNet, the number of images in ControlNet must match the number of scene prompts.  
+---Other functions similar to storydiffusion   
+---The bottom of the sampling node is a function that can only be used after starting layout_guidance (custom character), and must be a floating-point number less than 1.0.   
 
 5 Example
 ----
@@ -140,7 +143,7 @@ MS-Diffusion
   primaryClass={cs.CV}
 }
 ```
-```
+
 IP-Adapter
 ```
 @article{ye2023ip-adapter,
