@@ -68,7 +68,7 @@ If the address is not in the default C drive category, you can fill in the absol
 Fill in the absolute path of your local clip model in the "laion/CLIP ViT bigG-14-laion2B-39B-b160k" column, using "/".    
 Please refer to the file structure demonstration below for the required files.        
 ```
-├── ComfyUI/custom_nodes/ComfyUI_StoryDiffusion/
+├── ComfyUI/custom_nodes/ComfyUI_MS_Diffusion/
 |      ├──weights/
 |             ├── ms_adapter.bin
 ├── Any local_path/
