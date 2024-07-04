@@ -49,21 +49,16 @@ file_path = os.path.dirname(path_dir)
 fonts_path = os.path.join(dir_path, "fonts")
 fonts_lists = os.listdir(fonts_path)
 
+controlnet_list=["controlnet-openpose-sdxl-1.0","controlnet-zoe-depth-sdxl-1.0","controlnet-scribble-sdxl-1.0","controlnet-tile-sdxl-1.0","controlnet-depth-sdxl-1.0","controlnet-canny-sdxl-1.0","MistoLine","sdxl-controlnet-seg"]
+
+
 control_paths = []
 for search_path in folder_paths.get_folder_paths("diffusers"):
     if os.path.exists(search_path):
         for root, subdir, files in os.walk(search_path, followlinks=True):
             if "config.json" in files:
                 control_paths.append(os.path.relpath(root, start=search_path))
-                control_paths = ([z for z in control_paths if "controlnet-canny-sdxl-1.0" in z]
-                           + [p for p in control_paths if "MistoLine" in p]
-                           + [o for o in control_paths if "lcm-sdxl" in o]
-                           + [Q for Q in control_paths if "controlnet-openpose-sdxl-1.0" in Q]
-                           + [Z for Z in control_paths if "controlnet-scribble-sdxl-1.0" in Z]
-                           + [a for a in control_paths if "controlnet-depth-sdxl-1.0" in a]
-                           +[b for b in control_paths if "controlnet-tile-sdxl-1.0" in b]
-                           +[c for c in control_paths if "controlnet-zoe-depth-sdxl-1.0" in c]
-                           +[d for d in control_paths if "sdxl-controlnet-seg " in d])
+                control_paths = [z for z in control_paths if z.split("\\")[-1] in controlnet_list or z in controlnet_list]
 
 if control_paths:
     control_paths = ["none"] + [x for x in control_paths if x]
@@ -389,6 +384,7 @@ class MSdiffusion_Model_Loader:
                 pipe.fuse_lora(adapter_names=[trigger_words, ], lora_scale=lora_scale)
 
         pipe.scheduler = scheduler_choice.from_config(pipe.scheduler.config)
+        pipe.enable_xformers_memory_efficient_attention()
         pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
         pipe.enable_vae_slicing()
         if device != "mps":
@@ -429,10 +425,11 @@ class MSdiffusion_Model_Loader:
         ).to(device, dtype=torch.float16)
         ms_model = MSAdapter(pipe.unet, image_proj_model, ckpt_path=ms_ckpt, device=device, num_tokens=num_tokens)
         ms_model.to(device, dtype=torch.float16)
+        torch.cuda.empty_cache()
         info = str(";".join(
             [lora, trigger_words,controlnet_model_path,image_encoder_type,image_proj_type]))
         return (pipe,ms_model,image_encoder,image_processor, info,)
-
+    
 
 class MSdiffusion_Sampler:
     def __init__(self):
@@ -567,11 +564,12 @@ class MSdiffusion_Sampler:
         if lora not in lora_lightning_list:  # 加速lora不需要trigger
             prompts_list = [item + add_trigger_words for item in prompts_list]
         return prompts_list
-
+    
+   
     def ms_sampler(self,image,info,pipe,ms_model,image_encoder,image_processor, character_prompt, scene_prompts,split_prompt,negative_prompt,img_style,seed, steps,
                   cfg,role_scale, mask_threshold, start_step,controlnet_scale,width,height,layout_guidance,guidance_list,**kwargs):
         lora, trigger_words,controlnet_model_path,image_encoder_type,image_proj_type  = info.split(";")
-
+    
         guidance_list=guidance_list.strip().split(";")
         box_a = guidance_list[0].split(",")
         box_b = guidance_list[1].split(",")
