@@ -22,6 +22,12 @@ My ComfyUI node list：
 12、PBR_Maker node:[ComfyUI_PBR_Maker](https://github.com/smthemex/ComfyUI_PBR_Maker)      
 13、ComfyUI_Streamv2v_Plus node:[ComfyUI_Streamv2v_Plus](https://github.com/smthemex/ComfyUI_Streamv2v_Plus)   
 14、ComfyUI_MS_Diffusion node:[ComfyUI_MS_Diffusion](https://github.com/smthemex/ComfyUI_MS_Diffusion)   
+15、ComfyUI_AnyDoor node: [ComfyUI_AnyDoor](https://github.com/smthemex/ComfyUI_AnyDoor)  
+
+NEW Update
+---
+--now you can using txt2img mode;   
+-- Please store Model "ms_adapter.bin" in comfyUI/models/photomaker
 
 
 1.Installation
@@ -51,8 +57,8 @@ Need download "ms_adapter.bin" : [link](https://huggingface.co/doge1516/MS-Diffu
 Need encoder model "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k":[link](https://huggingface.co/laion/CLIP-ViT-bigG-14-laion2B-39B-b160k)    
 
 ```
-├── ComfyUI/custom_nodes/ComfyUI_MS_Diffusion/
-|      ├──weights/
+├── ComfyUI/models/
+|      ├──photomaker/
 |             ├── ms_adapter.bin
 ```
 if you want to use menu, encoder model "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k" shoule be:
@@ -68,9 +74,7 @@ If the address is not in the default C drive category, you can fill in the absol
 Fill in the absolute path of your local clip model in the "laion/CLIP ViT bigG-14-laion2B-39B-b160k" column, using "/".    
 Please refer to the file structure demonstration below for the required files.        
 ```
-├── ComfyUI/custom_nodes/ComfyUI_MS_Diffusion/
-|      ├──weights/
-|             ├── ms_adapter.bin
+
 ├── Any local_path/
 |     ├──CLIP ViT bigG-14-laion2B-39B-b160k/
 |             ├── config.json
@@ -123,10 +127,13 @@ Control_img image preprocessing, please use other nodes
 
 5 Example
 ----
-img2img lora      
-![](https://github.com/smthemex/ComfyUI_MS_Diffusion/blob/main/examples/img2img.png)
+img2img  you can add lora      
+![](https://github.com/smthemex/ComfyUI_MS_Diffusion/blob/main/examples/img2imgnew.png)
 
-img2img mode, add controlnet    
+txt2img  random char    
+![](https://github.com/smthemex/ComfyUI_MS_Diffusion/blob/main/examples/txt2imgnew.png)
+
+img2img mode, add controlnet Obsolete, but can be referenced   
 ![](https://github.com/smthemex/ComfyUI_MS_Diffusion/blob/main/examples/controlnet.png)
 
 
