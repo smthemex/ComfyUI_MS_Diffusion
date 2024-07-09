@@ -20,6 +20,14 @@ MS-Diffusion的地址: [link](https://github.com/MS-Diffusion/MS-Diffusion)
 12、PBR_Maker node（生成式PBR贴图，即将上线）:[ComfyUI_PBR_Maker](https://github.com/smthemex/ComfyUI_PBR_Maker)   
 13、ComfyUI_Streamv2v_Plus node（视频转绘，能用，未打磨）:[ComfyUI_Streamv2v_Plus](https://github.com/smthemex/ComfyUI_Streamv2v_Plus)   
 14、ComfyUI_MS_Diffusion node（基于MS-diffusion做的故事话本）:[ComfyUI_MS_Diffusion](https://github.com/smthemex/ComfyUI_MS_Diffusion)   
+15、ComfyUI_AnyDoor node(一键换衣): [ComfyUI_AnyDoor](https://github.com/smthemex/ComfyUI_AnyDoor)  
+
+
+最近更新
+---
+--增加了文生图模式,角色随机生成.   
+-- 把模型文件 "ms_adapter.bin"统一移到comfyUI/models/photomaker,免得占空间..  
+
 
 1.安装
 -----
@@ -51,11 +59,16 @@ pip install -r requirements.txt
 需要下载 "laion/CLIP-ViT-bigG-14-laion2B-39B-b160k":[下载地址](https://huggingface.co/laion/CLIP-ViT-bigG-14-laion2B-39B-b160k)     
 文件存放的结构如下  ：  
 ```
-├──ComfyUI/custom_nodes/ComfyUI_MS_Diffusion/
-|      ├──weights/
-|             ├── photomaker-v1.bin
+├──ComfyUI/models/
+|      ├──photomaker/
 |             ├── ms_adapter.bin
 
+```
+如果在clip_vision存放模型,菜单就能找到.   
+```
+├── ComfyUI/models/
+|      ├──clip_vision/
+|             ├── laion/CLIP-ViT-bigG-14-laion2B-39B-b160k
 ```
 
 3.2 离线模式 
@@ -63,9 +76,6 @@ pip install -r requirements.txt
 在“laion/CLIP-ViT-bigG-14-laion2B-39B-b160k” 一栏里填写你的本地clip模型的绝对路径，使用“/”，需求的文件看下面的文件结构演示。      
 以下是双角色功能，离线版的模型文件结构：   
 ```
-├── ComfyUI/custom_nodes/ComfyUI_MS_Diffusion/
-|      ├──weights/
-|             ├── ms_adapter.bin
 ├── local_path/
 |     ├──CLIP ViT bigG-14-laion2B-39B-b160k/
 |             ├── config.json
@@ -119,10 +129,13 @@ control_img图片的预处理，请使用其他节点
 5 Example
 ----
 
-img2img lora      
-![](https://github.com/smthemex/ComfyUI_MS_Diffusion/blob/main/examples/img2img.png)
+img2img lora 图生图(新)        
+![](https://github.com/smthemex/ComfyUI_MS_Diffusion/blob/main/examples/img2imgnew.png)
 
-img2img mode, add controlnet    
+txt2img  文生图,随机角色..    
+![](https://github.com/smthemex/ComfyUI_MS_Diffusion/blob/main/examples/txt2imgnew.png)
+
+img2img mode, add controlnet  (老图,可以参考)  
 ![](https://github.com/smthemex/ComfyUI_MS_Diffusion/blob/main/examples/controlnet.png)
 
 
