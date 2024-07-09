@@ -285,12 +285,15 @@ def instance_path(path, repo,file):
 
 class MSdiffusion_Model_Loader:
     def __init__(self):
-        pass
+        self.counters = {}
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "character_prompt": ("STRING", {"multiline": True,
+                                                "default": "[woman] wearing a white T-shirt, blue loose hair.\n"
+                                                           "[man] wearing a suit,black hair."}),
                 "ckpt_name": (["none"]+folder_paths.get_filename_list("checkpoints"),),
                 "diffuser_model":  (diff_paths,),
                 "repo_id": ("STRING", {"default": "stabilityai/stable-diffusion-xl-base-1.0"}),
@@ -300,21 +303,40 @@ class MSdiffusion_Model_Loader:
                 "lora": (["none"] + folder_paths.get_filename_list("loras"),),
                 "lora_scale": ("FLOAT", {"default": 0.8, "min": 0.1, "max": 1.0, "step": 0.1}),
                 "trigger_words": ("STRING", {"default": "best quality"}),
-                "scheduler": (scheduler_list,),}
+                "scheduler": (scheduler_list,),
+                "model_type": (["img2img", "txt2img"],),},
+           "hidden": {"unique_id": "UNIQUE_ID",}
         }
 
-    RETURN_TYPES = ("MODEL","MODEL","MODEL","MODEL", "STRING",)
-    RETURN_NAMES = ("pipe","ms_model","image_encoder", "image_processor","info",)
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return float("NaN")
+    
+    RETURN_TYPES = ("MODEL","MODEL","MODEL","MODEL", "CONDITIONING","STRING",)
+    RETURN_NAMES = ("pipe","ms_model","image_encoder", "image_processor","tensor","info",)
     FUNCTION = "ms_model_loader"
     CATEGORY = "MSdiffusion"
 
-    def ms_model_loader(self, ckpt_name,diffuser_model,repo_id,clip_vision_local, clip_vision_repo, controlnet_model_path,lora, lora_scale, trigger_words,scheduler,
-                           ):
+    def ms_model_loader(self, character_prompt,ckpt_name,diffuser_model,repo_id,clip_vision_local, clip_vision_repo, controlnet_model_path,lora, lora_scale, trigger_words,scheduler,model_type,
+                           unique_id):
+        scheduler_choice = get_scheduler(scheduler)
+        
+        char_origin_f = character_prompt.splitlines()
+        char_describe = [char.replace("]", " ").replace("[", " ") for char in char_origin_f]  # del character's []
+        
         repo_id = instance_path(diffuser_model, repo_id,"diffusers")
         clip_vision=instance_path(clip_vision_local, clip_vision_repo,"clip_vision")
         if clip_vision=="none":
             raise "need clip_vision"
-        scheduler_choice = get_scheduler(scheduler)
+        if model_type=="txt2img" :
+            counter = int(1)
+            if self.counters.__contains__(unique_id):
+                counter = self.counters[unique_id]
+            counter += 1  # 迭代1次
+            self.counters[unique_id] = counter
+            index = int(counter-1) % len(scheduler_list) + 1
+            scheduler=scheduler_list[index]
+            scheduler_choice = get_scheduler(scheduler)
 
         if lora != "none":
             lora_path = folder_paths.get_full_path("loras", lora)
@@ -374,7 +396,7 @@ class MSdiffusion_Model_Loader:
                 pipe = StableDiffusionXLPipeline.from_pretrained(
                     repo_id, torch_dtype=torch.float16, add_watermarker=False,
                 ).to(device)
-
+                
         if lora != "none":
             if lora in lora_lightning_list:
                 pipe.load_lora_weights(lora_path)
@@ -389,7 +411,22 @@ class MSdiffusion_Model_Loader:
         pipe.enable_vae_slicing()
         if device != "mps":
             pipe.enable_model_cpu_offload()
-        ms_dir = os.path.join(dir_path, "weights")
+        tensor_c=torch.empty(0)
+        if model_type == "txt2img":
+            generator = torch.Generator("cuda").manual_seed(31)
+            if len(char_describe)==1:
+                image = pipe(f"{char_describe[0]},close-up shot, detailed, 8k",num_inference_steps=25,height=768, width=768,generator=generator ).images[0]
+                tensor_c=pil2tensor(image)
+            elif len(char_describe)==2:
+                image1 = pipe(f"{char_describe[0]},close-up shot, detailed, 8k",num_inference_steps=25,height=768, width=768, generator=generator).images[0]
+                tensor_c1 = pil2tensor(image1)
+                image2 = pipe(f"{char_describe[1]},close-up shot, detailed, 8k",num_inference_steps=25,height=768, width=768,generator=generator ).images[0]
+                tensor_c2 = pil2tensor(image2)
+                tensor_c=torch.cat((tensor_c1,tensor_c2),dim=0)
+            else:
+                raise "character should be 1 or 2"
+            
+        ms_dir = os.path.join(file_path, "models","photomaker")
         photomaker_local_path = os.path.join(ms_dir, "ms_adapter.bin")
         if not os.path.exists(photomaker_local_path):
             ms_path = hf_hub_download(
@@ -427,8 +464,8 @@ class MSdiffusion_Model_Loader:
         ms_model.to(device, dtype=torch.float16)
         torch.cuda.empty_cache()
         info = str(";".join(
-            [lora, trigger_words,controlnet_model_path,image_encoder_type,image_proj_type]))
-        return (pipe,ms_model,image_encoder,image_processor, info,)
+            [lora, trigger_words,controlnet_model_path,image_encoder_type,image_proj_type,character_prompt]))
+        return (pipe,ms_model,image_encoder,image_processor,tensor_c, info,)
     
 
 class MSdiffusion_Sampler:
@@ -439,15 +476,12 @@ class MSdiffusion_Sampler:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "image": ("IMAGE",),
-                "info": ("STRING", {"forceInput": True, "default": ""}),
                 "pipe": ("MODEL",),
                 "ms_model": ("MODEL",),
                 "image_encoder": ("MODEL",),
                 "image_processor": ("MODEL",),
-                "character_prompt": ("STRING", {"multiline": True,
-                                                "default": "[woman] wearing a white T-shirt, blue loose hair.\n"
-                                                           "[man] wearing a suit,black hair."}),
+                "tensor": ("CONDITIONING",),
+                "info": ("STRING", {"forceInput": True, "default": ""}),
                 "scene_prompts": ("STRING", {"multiline": True,
                                              "default": "[woman] and [man] have breakfast,medium shot;\n[woman] go to company;\n[man] have lunch,medium shot;\n[NC] a living room."}),
                 "split_prompt": ("STRING", {"default": ""}),
@@ -477,7 +511,9 @@ class MSdiffusion_Sampler:
                 "layout_guidance":("BOOLEAN", {"default": False},),
                 "guidance_list": ("STRING", {"multiline": True,"default": "0., 0.25, 0.4, 0.75;0.6, 0.25, 1., 0.75"}),
             },
-            "optional": {"control_image": ("IMAGE",),}
+            "optional": {"control_image": ("IMAGE",),
+                         "image": ("IMAGE",),
+                         }
         }
 
     RETURN_TYPES = ("IMAGE", "STRING",)
@@ -566,9 +602,9 @@ class MSdiffusion_Sampler:
         return prompts_list
     
    
-    def ms_sampler(self,image,info,pipe,ms_model,image_encoder,image_processor, character_prompt, scene_prompts,split_prompt,negative_prompt,img_style,seed, steps,
+    def ms_sampler(self,pipe,ms_model,image_encoder,image_processor, tensor,info, scene_prompts,split_prompt,negative_prompt,img_style,seed, steps,
                   cfg,role_scale, mask_threshold, start_step,controlnet_scale,width,height,layout_guidance,guidance_list,**kwargs):
-        lora, trigger_words,controlnet_model_path,image_encoder_type,image_proj_type  = info.split(";")
+        lora, trigger_words,controlnet_model_path,image_encoder_type,image_proj_type ,character_prompt = info.split(";")
     
         guidance_list=guidance_list.strip().split(";")
         box_a = guidance_list[0].split(",")
@@ -604,9 +640,18 @@ class MSdiffusion_Sampler:
         prompts_origin_unuse, negative_prompt = apply_style(img_style, prompts_origin, negative_prompt) #获取  style p prompt
 
         num_samples = 1 #批次
-        #image = kwargs["image"]
-        d1, _, _, _ = image.size()
-
+        if tensor.numel()>0:
+            image=tensor
+            if len(char_origin_f)==1:
+                d1 = 1
+            elif len(char_origin_f)==2:
+                d1=2
+            else:
+                raise "character must be 1 or 2"
+        else:
+            image = kwargs["image"]
+            d1, _, _, _ = image.size()
+        
         if d1 == 1:
             prompt_single_NC = [prompt for prompt in prompts_origin if "[NC]" in prompt]  # NC场景列表,单人,
             prompt_single_NC=[prompt.replace("[NC]","") for prompt in prompt_single_NC ]  # 去除符号
@@ -704,7 +749,10 @@ class MSdiffusion_Sampler:
                               (char_origin[0] in prompt and char_origin[1] in prompt)]  # 排除单人，nc,仅双人
             #print(prompt_dual_NC, "prompt_dual_NC",index_dual_NC, "index_dual_NC",prompts_origin_role_a ,"prompts_origin_role_a ",prompts_origin_role_a_index,"prompts_origin_role_a_index",prompts_origin_role_b,"prompts_origin_role_b",prompts_origin,"prompts_origin")
             img_list = list(torch.chunk(image, chunks=d1))
-            input_images = [nomarl_upscale(img, width, height) for img in img_list]
+            if tensor.numel() > 0:
+                input_images=img_list
+            else:
+                input_images = [nomarl_upscale(img, width, height) for img in img_list]
 
             input_images_a =[input_images[0]]
             input_images_b = [input_images[1]]
