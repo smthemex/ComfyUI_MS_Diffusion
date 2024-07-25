@@ -43,13 +43,11 @@ class MSAdapter(torch.nn.Module):
         orig_ip_proj_sum = torch.sum(torch.stack([torch.sum(p) for p in self.image_proj_model.parameters()]))
         orig_adapter_sum = torch.sum(torch.stack([torch.sum(p) for p in self.adapter_modules.parameters()]))
 
-        state_dict = torch.load(ckpt_path, map_location="cpu")
-
+        #state_dict = torch.load(ckpt_path, map_location="cpu")
+        state_dict = torch.load(ckpt_path, map_location="cuda")
         # Load state dict for image_proj_model and adapter_modules when using resampler
-        # self.image_proj_model.load_state_dict(state_dict["image_proj"], strict=False)
-        # self.adapter_modules.load_state_dict(state_dict["ms_adapter"], strict=False)
-        self.image_proj_model.load_state_dict(state_dict["image_proj"], strict=True)
-        self.adapter_modules.load_state_dict(state_dict["ms_adapter"], strict=True)
+        self.image_proj_model.load_state_dict(state_dict["image_proj"], strict=False)
+        self.adapter_modules.load_state_dict(state_dict["ms_adapter"], strict=False)
         self.load_state_dict({"dummy_image_tokens": state_dict["dummy_image_tokens"]}, strict=False)
 
         # Calculate new checksums
