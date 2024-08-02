@@ -2,7 +2,7 @@
 name = "comfyui_ms_diffusion"
 description = "you can make story in comfyUI using MS-diffusion"
 version = "1.0.0"
-license = "LICENSE"
+license = { file = "LICENSE" }
 dependencies = ["tensorboard", "scipy", "opencv-python", "PyYAML"]
 
 [project.urls]
