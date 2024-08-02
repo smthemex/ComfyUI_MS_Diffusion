@@ -43,8 +43,7 @@ class MSAdapter(torch.nn.Module):
         orig_ip_proj_sum = torch.sum(torch.stack([torch.sum(p) for p in self.image_proj_model.parameters()]))
         orig_adapter_sum = torch.sum(torch.stack([torch.sum(p) for p in self.adapter_modules.parameters()]))
 
-        #state_dict = torch.load(ckpt_path, map_location="cpu")
-        state_dict = torch.load(ckpt_path, map_location="cuda")
+        state_dict = torch.load(ckpt_path, map_location="cpu")
         # Load state dict for image_proj_model and adapter_modules when using resampler
         self.image_proj_model.load_state_dict(state_dict["image_proj"], strict=False)
         self.adapter_modules.load_state_dict(state_dict["ms_adapter"], strict=False)
@@ -99,7 +98,7 @@ class MSAdapter(torch.nn.Module):
         processed_images = processed_images.view(-1, processed_images.shape[-3], processed_images.shape[-2],
                                                  processed_images.shape[-1])  # (bsz*rn, ...)
         if image_proj_type == "resampler":
-            image_embeds = image_encoder(processed_images.to(self.device, dtype=weight_dtype),
+            image_embeds = image_encoder(processed_images.to( self.device,dtype=weight_dtype),
                                          output_hidden_states=True).hidden_states[-2]  # (bsz*rn, num_tokens, embedding_dim)
         else:
             image_embeds = image_encoder(processed_images.to(self.device, dtype=weight_dtype)).image_embeds  # (bsz*rn, embedding_dim)
@@ -219,6 +218,7 @@ class MSAdapter(torch.nn.Module):
             negative_prompt_embeds = torch.cat([negative_prompt_embeds_, uncond_image_prompt_embeds], dim=1)
 
         generator = torch.Generator(self.device).manual_seed(seed) if seed is not None else None
+        
         images = pipe(
             prompt_embeds=prompt_embeds,
             negative_prompt_embeds=negative_prompt_embeds,
