@@ -1,4 +1,3 @@
 tensorboard
 scipy
-opencv-python
 PyYAML
