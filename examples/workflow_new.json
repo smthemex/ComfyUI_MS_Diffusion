@@ -1,0 +1,395 @@
+{
+  "last_node_id": 40,
+  "last_link_id": 101,
+  "nodes": [
+    {
+      "id": 3,
+      "type": "LoadImage",
+      "pos": [
+        1119,
+        -33
+      ],
+      "size": {
+        "0": 315,
+        "1": 314
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            89
+          ],
+          "shape": 3,
+          "label": "IMAGE",
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "MASK"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "123 (1).png",
+        "image"
+      ]
+    },
+    {
+      "id": 36,
+      "type": "MS_Object_img_Batch",
+      "pos": [
+        1512,
+        180
+      ],
+      "size": {
+        "0": 210,
+        "1": 86
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_a",
+          "type": "IMAGE",
+          "link": 88,
+          "label": "image_a"
+        },
+        {
+          "name": "image_b",
+          "type": "IMAGE",
+          "link": 89,
+          "label": "image_b"
+        },
+        {
+          "name": "image_c",
+          "type": "IMAGE",
+          "link": null,
+          "label": "image_c"
+        },
+        {
+          "name": "image_d",
+          "type": "IMAGE",
+          "link": null,
+          "label": "image_d"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            98
+          ],
+          "shape": 3,
+          "label": "IMAGE",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MS_Object_img_Batch"
+      }
+    },
+    {
+      "id": 4,
+      "type": "SaveImage",
+      "pos": [
+        1939,
+        362
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 99,
+          "label": "images"
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 39,
+      "type": "MSdiffusion_Sampler",
+      "pos": [
+        1508,
+        349
+      ],
+      "size": {
+        "0": 400,
+        "1": 504
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 98,
+          "label": "image"
+        },
+        {
+          "name": "model",
+          "type": "MSDIF_DICT",
+          "link": 101,
+          "label": "model"
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": null,
+          "label": "control_image"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            99
+          ],
+          "shape": 3,
+          "label": "image",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MSdiffusion_Sampler"
+      },
+      "widgets_values": [
+        "a [pig] wearing a pink [sunglass]",
+        "(worst quality, low quality, normal quality, lowres),",
+        825964470,
+        "fixed",
+        20,
+        7,
+        0.8,
+        0.5,
+        5,
+        0.8,
+        768,
+        768,
+        1,
+        false,
+        "0., 0.25, 0.4, 0.75;0., 0.25, 0.4, 0.75"
+      ]
+    },
+    {
+      "id": 35,
+      "type": "LoadImage",
+      "pos": [
+        774,
+        -35
+      ],
+      "size": {
+        "0": 315,
+        "1": 314
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            88
+          ],
+          "shape": 3,
+          "label": "IMAGE",
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "MASK"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "123.png",
+        "image"
+      ]
+    },
+    {
+      "id": 32,
+      "type": "CLIPVisionLoader",
+      "pos": [
+        790,
+        448
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "CLIP_VISION",
+          "type": "CLIP_VISION",
+          "links": [
+            100
+          ],
+          "shape": 3,
+          "label": "CLIP_VISION",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPVisionLoader"
+      },
+      "widgets_values": [
+        "clip_vision_g.safetensors"
+      ]
+    },
+    {
+      "id": 40,
+      "type": "MSdiffusion_Model_Loader",
+      "pos": [
+        1162,
+        402
+      ],
+      "size": {
+        "0": 315,
+        "1": 250
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip_vision",
+          "type": "CLIP_VISION",
+          "link": 100,
+          "label": "clip_vision"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MSDIF_DICT",
+          "links": [
+            101
+          ],
+          "shape": 3,
+          "label": "model",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MSdiffusion_Model_Loader"
+      },
+      "widgets_values": [
+        "0SDXL\\juggernautXL_v8Rundiffusion.safetensors",
+        "",
+        "none",
+        "none",
+        "",
+        "none",
+        0.8,
+        "best quality",
+        "Euler"
+      ]
+    }
+  ],
+  "links": [
+    [
+      88,
+      35,
+      0,
+      36,
+      0,
+      "IMAGE"
+    ],
+    [
+      89,
+      3,
+      0,
+      36,
+      1,
+      "IMAGE"
+    ],
+    [
+      98,
+      36,
+      0,
+      39,
+      0,
+      "IMAGE"
+    ],
+    [
+      99,
+      39,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      100,
+      32,
+      0,
+      40,
+      0,
+      "CLIP_VISION"
+    ],
+    [
+      101,
+      40,
+      0,
+      39,
+      1,
+      "MSDIF_DICT"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "Group",
+      "bounding": [
+        750,
+        -184,
+        1544,
+        1093
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "locked": false
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.9090909090909091,
+      "offset": {
+        "0": -600.3953810605899,
+        "1": 110.50656660086888
+      }
+    }
+  },
+  "version": 0.4
+}
