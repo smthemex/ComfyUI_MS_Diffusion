@@ -243,18 +243,16 @@ class MSdiffusion_Model_Loader:
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "clip_vision": ("CLIP_VISION",),
                 "ckpt_name": (["none"] + folder_paths.get_filename_list("checkpoints"),),
                 "repo_id": ("STRING", {"default": ""}),
-                "clip_vision_repo": ("STRING", {"default": ""}),
                 "vae_id": (["none"] + folder_paths.get_filename_list("vae"),),
                 "controlnet_diff": (control_paths,),
                 "controlnet_repo": ("STRING", {"default": ""}),
                 "lora": (["none"] + folder_paths.get_filename_list("loras"),),
                 "lora_scale": ("FLOAT", {"default": 0.8, "min": 0.1, "max": 1.0, "step": 0.1}),
                 "trigger_words": ("STRING", {"default": "best quality"}),
-                "scheduler": (scheduler_list,), },
-            "optional": {"clip_vision": ("CLIP_VISION",),
-                         }
+                "scheduler": (scheduler_list,), }
         }
     
     RETURN_TYPES = ("MSDIF_DICT",)
@@ -262,9 +260,9 @@ class MSdiffusion_Model_Loader:
     FUNCTION = "ms_model_loader"
     CATEGORY = "MSdiffusion"
     
-    def ms_model_loader(self, ckpt_name, repo_id, clip_vision_repo, vae_id, controlnet_diff,
-                        controlnet_repo, lora, lora_scale, trigger_words, scheduler, **kwargs):
-        
+    def ms_model_loader(self, clip_vision,ckpt_name, repo_id, vae_id, controlnet_diff,
+                        controlnet_repo, lora, lora_scale, trigger_words, scheduler):
+        clip_vision_repo=False
         if clip_vision_repo:
             device = ("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
             clip_vision_path = get_instance_path(clip_vision_repo)
@@ -272,7 +270,7 @@ class MSdiffusion_Model_Loader:
                                                                                                dtype=torch.float16)
             use_repo = True
         else:
-            image_encoder = kwargs.get("clip_vision")
+            image_encoder = clip_vision
             device = image_encoder.load_device
             use_repo = False
         scheduler_choice = get_scheduler(scheduler)
