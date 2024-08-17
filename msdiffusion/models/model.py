@@ -215,8 +215,9 @@ class MSAdapter(torch.nn.Module):
                                                  image_encoder_type=image_encoder_type, weight_dtype=weight_dtype,use_repo=use_repo)
             #print(image_embeds.shape) #torch.Size([1, 257, 1664])
             if not use_repo:
-                image_embeds=image_embeds.cuda().half()
+                image_embeds=image_embeds.clone().detach().to(self.device, weight_dtype)
             image_prompt_embeds = self.image_proj_model(image_embeds, grounding_kwargs=grounding_kwargs)
+            del image_embeds
             image_prompt_embeds = image_prompt_embeds.view(bsz, -1, image_prompt_embeds.shape[-2],
                                                            image_prompt_embeds.shape[
                                                                -1])  # (bsz, rn, num_tokens, cross_attention_dim)
