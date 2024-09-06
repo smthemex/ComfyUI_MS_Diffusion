@@ -289,6 +289,7 @@ class MSdiffusion_Model_Loader:
             lora = lora.split("\\")[-1]
         
         # load SDXL pipeline
+        add_config="stabilityai/stable-diffusion-xl-base-1.0"
         if not repo_id:
             original_config_file = os.path.join(dir_path, "config", "sd_xl_base.yaml")
             
@@ -298,12 +299,12 @@ class MSdiffusion_Model_Loader:
                     torch_dtype=torch.float16
                 )
                 try:
-                    pipe = StableDiffusionXLControlNetPipeline.from_single_file(ckpt_path, controlnet=controlnet,
+                    pipe = StableDiffusionXLControlNetPipeline.from_single_file(ckpt_path,config=add_config, controlnet=controlnet,
                                                                                 original_config=original_config_file,
                                                                                 torch_dtype=torch.float16, )
                 except:
                     try:
-                        pipe = StableDiffusionXLControlNetPipeline.from_single_file(ckpt_path, controlnet=controlnet,
+                        pipe = StableDiffusionXLControlNetPipeline.from_single_file(ckpt_path,config=add_config, controlnet=controlnet,
                                                                                     original_config_file=original_config_file,
                                                                                     torch_dtype=torch.float16, )
                     except:
@@ -311,11 +312,11 @@ class MSdiffusion_Model_Loader:
             else:
                 try:
                     pipe = StableDiffusionXLPipeline.from_single_file(
-                        ckpt_path, original_config=original_config_file, torch_dtype=torch.float16)
+                        ckpt_path,config=add_config, original_config=original_config_file, torch_dtype=torch.float16)
                 except:
                     try:
                         pipe = StableDiffusionXLPipeline.from_single_file(
-                            ckpt_path, original_config_file=original_config_file, torch_dtype=torch.float16)
+                            ckpt_path,config=add_config, original_config_file=original_config_file, torch_dtype=torch.float16)
                     except:
                         raise "model error"
         
