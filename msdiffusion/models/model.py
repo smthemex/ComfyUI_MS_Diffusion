@@ -95,26 +95,26 @@ class MSAdapter(torch.nn.Module):
     
     @torch.inference_mode()
     def get_image_embeds(self, processed_images, image_encoder=None, image_proj_type="linear",
-                         image_encoder_type="clip", weight_dtype=torch.float16,use_repo=None):
+                         image_encoder_type="clip", weight_dtype=torch.float16,):
         # get image embeds
         #processed_images: [bsz, rn, ...]
-        if use_repo:
-            processed_images = processed_images.view(-1, processed_images.shape[-3], processed_images.shape[-2],
-                                                     processed_images.shape[-1])  # (bsz*rn, ...)
-            #print(processed_images.shape)  # torch.Size([1, 3, 224, 224])
+        # if use_repo:
+        #     processed_images = processed_images.view(-1, processed_images.shape[-3], processed_images.shape[-2],
+        #                                              processed_images.shape[-1])  # (bsz*rn, ...)
+        #     #print(processed_images.shape)  # torch.Size([1, 3, 224, 224])
 
         if image_proj_type == "resampler":
-            if use_repo:
-                image_embeds = image_encoder(processed_images.to(self.device, dtype=weight_dtype),
-                                             output_hidden_states=True).hidden_states[
-                    -2]  # (bsz*rn, num_tokens, embedding_dim)
-            else:
-                image_encoder = image_encoder.encode_image
-                processed_images.to(self.device, dtype=weight_dtype)
-                #image_embeds = image_encoder(processed_images)["image_embeds"]
-                #image_embeds = image_encoder(processed_images)["last_hidden_state"]
-                image_embeds=image_encoder(processed_images)["penultimate_hidden_states"]
-                # print(image_embeds.shape)
+            # if use_repo:
+            #     image_embeds = image_encoder(processed_images.to(self.device, dtype=weight_dtype),
+            #                                  output_hidden_states=True).hidden_states[
+            #         -2]  # (bsz*rn, num_tokens, embedding_dim)
+            # else:
+            image_encoder = image_encoder.encode_image
+            processed_images.to(self.device, dtype=weight_dtype)
+            #image_embeds = image_encoder(processed_images)["image_embeds"]
+            #image_embeds = image_encoder(processed_images)["last_hidden_state"]
+            image_embeds=image_encoder(processed_images)["penultimate_hidden_states"]
+            # print(image_embeds.shape)
         else:
             image_embeds = image_encoder(
                 processed_images.to(self.device, dtype=weight_dtype)).image_embeds  # (bsz*rn, embedding_dim)
@@ -140,7 +140,7 @@ class MSAdapter(torch.nn.Module):
                  num_samples=4, seed=None, guidance_scale=7.5, num_inference_steps=50, image_processor=None,
                  image_encoder=None, image_proj_type="linear", image_encoder_type="clip", weight_dtype=torch.float16,
                  boxes=None, phrases=None, drop_grounding_tokens=None, phrase_idxes=None,
-                 eot_idxes=None, height=1024, width=1024, subject_scales=None, mask_threshold=None, start_step=5,use_repo=None,
+                 eot_idxes=None, height=1024, width=1024, subject_scales=None, mask_threshold=None, start_step=5,
                  **kwargs):
         # generate images (validation&inference)
         self.pipe = pipe
@@ -212,10 +212,10 @@ class MSAdapter(torch.nn.Module):
         
         with (torch.inference_mode()):
             image_embeds = self.get_image_embeds(processed_images, image_encoder, image_proj_type=image_proj_type,
-                                                 image_encoder_type=image_encoder_type, weight_dtype=weight_dtype,use_repo=use_repo)
+                                                 image_encoder_type=image_encoder_type, weight_dtype=weight_dtype,)
             #print(image_embeds.shape) #torch.Size([1, 257, 1664])
-            if not use_repo:
-                image_embeds=image_embeds.clone().detach().to(self.device, weight_dtype)
+            
+            image_embeds=image_embeds.clone().detach().to(self.device, weight_dtype)
             image_prompt_embeds = self.image_proj_model(image_embeds, grounding_kwargs=grounding_kwargs)
             del image_embeds
             image_prompt_embeds = image_prompt_embeds.view(bsz, -1, image_prompt_embeds.shape[-2],
