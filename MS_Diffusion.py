@@ -31,34 +31,13 @@ dir_path = os.path.dirname(os.path.abspath(__file__))
 path_dir = os.path.dirname(dir_path)
 file_path = os.path.dirname(path_dir)
 
-controlnet_list = ["controlnet-openpose-sdxl-1.0", "controlnet-zoe-depth-sdxl-1.0", "controlnet-scribble-sdxl-1.0",
-                   "controlnet-tile-sdxl-1.0", "controlnet-depth-sdxl-1.0", "controlnet-canny-sdxl-1.0", "MistoLine",
-                   "sdxl-controlnet-seg"]
-
-control_paths = []
-for search_path in folder_paths.get_folder_paths("diffusers"):
-    if os.path.exists(search_path):
-        for root, subdir, files in os.walk(search_path, followlinks=True):
-            if "config.json" in files:
-                control_paths.append(os.path.relpath(root, start=search_path))
-                control_paths = [z for z in control_paths if
-                                 z.split("\\")[-1] in controlnet_list or z in controlnet_list]
-
-if control_paths:
-    control_paths = ["none"] + [x for x in control_paths if x]
-else:
-    control_paths = ["none", ]
-
-
 def get_instance_path(path):
     instance_path = os.path.normpath(path)
     if sys.platform == 'win32':
         instance_path = instance_path.replace('\\', "/")
     return instance_path
 
-
 loras_path = get_instance_path(os.path.join(dir_path, "config", "lora.yaml"))
-
 
 def get_lora_dict():
     # 打开并读取YAML文件
@@ -245,10 +224,8 @@ class MSdiffusion_Model_Loader:
             "required": {
                 "clip_vision": ("CLIP_VISION",),
                 "ckpt_name": (["none"] + folder_paths.get_filename_list("checkpoints"),),
-                "repo_id": ("STRING", {"default": ""}),
                 "vae_id": (["none"] + folder_paths.get_filename_list("vae"),),
-                "controlnet_diff": (control_paths,),
-                "controlnet_repo": ("STRING", {"default": ""}),
+                "controlnet_ckpt": (["none"] + folder_paths.get_filename_list("controlnet"),),
                 "lora": (["none"] + folder_paths.get_filename_list("loras"),),
                 "lora_scale": ("FLOAT", {"default": 0.8, "min": 0.1, "max": 1.0, "step": 0.1}),
                 "trigger_words": ("STRING", {"default": "best quality"}),
@@ -260,23 +237,17 @@ class MSdiffusion_Model_Loader:
     FUNCTION = "ms_model_loader"
     CATEGORY = "MSdiffusion"
     
-    def ms_model_loader(self, clip_vision,ckpt_name, repo_id, vae_id, controlnet_diff,
-                        controlnet_repo, lora, lora_scale, trigger_words, scheduler):
-        clip_vision_repo=False
-        if clip_vision_repo:
-            device = ("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
-            clip_vision_path = get_instance_path(clip_vision_repo)
-            image_encoder = CLIPVisionModelWithProjection.from_pretrained(clip_vision_path).to(device,
-                                                                                               dtype=torch.float16)
-            use_repo = True
-        else:
-            image_encoder = clip_vision
-            device = image_encoder.load_device
-            use_repo = False
+    def ms_model_loader(self, clip_vision,ckpt_name, vae_id, controlnet_ckpt,
+                        lora, lora_scale, trigger_words, scheduler):
+        image_encoder = clip_vision
+        device = image_encoder.load_device
         scheduler_choice = get_scheduler(scheduler)
-        controlnet_model = instance_path(controlnet_diff, controlnet_repo, "diffusers")
         
+        controlnet_path = folder_paths.get_full_path("controlnet", controlnet_ckpt)
         ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
+        
+        modle_config = os.path.join(dir_path,"local_repo")
+        original_config_file = os.path.join(dir_path, "config", "sd_xl_base.yaml")
         
         if lora != "none":
             lora_path = folder_paths.get_full_path("loras", lora)
@@ -289,65 +260,42 @@ class MSdiffusion_Model_Loader:
             lora = lora.split("\\")[-1]
         
         # load SDXL pipeline
-        add_config="stabilityai/stable-diffusion-xl-base-1.0"
-        if not repo_id:
-            original_config_file = os.path.join(dir_path, "config", "sd_xl_base.yaml")
+        try:
+            pipe = StableDiffusionXLPipeline.from_single_file(
+                ckpt_path, config=modle_config, original_config=original_config_file, torch_dtype=torch.float16)
+        except:
+            try:
+                pipe = StableDiffusionXLPipeline.from_single_file(
+                    ckpt_path, config=modle_config, original_config_file=original_config_file,
+                    torch_dtype=torch.float16)
+            except:
+                raise "model error"
             
-            if controlnet_model != "none":  # 启用control
-                controlnet = ControlNetModel.from_pretrained(
-                    controlnet_model, use_safetensors=True,
-                    torch_dtype=torch.float16
-                )
+        if controlnet_ckpt != "none":  # 启用control
+            from safetensors.torch import load_file
+            controlnet = ControlNetModel.from_unet(pipe.unet)
+            cn_state_dict = load_file(controlnet_path, device="cpu")
+            controlnet.load_state_dict(cn_state_dict, strict=False)
+            controlnet.to(torch.float16)
+            
+            try:
+                pipe = StableDiffusionXLControlNetPipeline.from_single_file(ckpt_path, config=modle_config,unet=pipe.unet,
+                                                                            controlnet=controlnet,
+                                                                            original_config=original_config_file,
+                                                                            torch_dtype=torch.float16, )
+            except:
                 try:
-                    pipe = StableDiffusionXLControlNetPipeline.from_single_file(ckpt_path,config=add_config, controlnet=controlnet,
-                                                                                original_config=original_config_file,
+                    pipe = StableDiffusionXLControlNetPipeline.from_single_file(ckpt_path, config=modle_config,unet=pipe.unet,
+                                                                                controlnet=controlnet,
+                                                                                original_config_file=original_config_file,
                                                                                 torch_dtype=torch.float16, )
                 except:
-                    try:
-                        pipe = StableDiffusionXLControlNetPipeline.from_single_file(ckpt_path,config=add_config, controlnet=controlnet,
-                                                                                    original_config_file=original_config_file,
-                                                                                    torch_dtype=torch.float16, )
-                    except:
-                        raise "model error"
-            else:
-                try:
-                    pipe = StableDiffusionXLPipeline.from_single_file(
-                        ckpt_path,config=add_config, original_config=original_config_file, torch_dtype=torch.float16)
-                except:
-                    try:
-                        pipe = StableDiffusionXLPipeline.from_single_file(
-                            ckpt_path,config=add_config, original_config_file=original_config_file, torch_dtype=torch.float16)
-                    except:
-                        raise "model error"
-        
-        else:
-            if controlnet_model != "none":  # 启用control
-                try:
-                    controlnet = ControlNetModel.from_pretrained(
-                        controlnet_model, use_safetensors=True, variant="fp16",
-                        torch_dtype=torch.float16
-                    )
-                except:
-                    try:
-                        controlnet = ControlNetModel.from_pretrained(
-                            controlnet_model, use_safetensors=True,
-                            torch_dtype=torch.float16
-                        )
-                    except:
-                        raise "model error,need rename model like'diffusion_pytorch_model.safetensors'"
-                
-                pipe = StableDiffusionXLControlNetPipeline.from_pretrained(repo_id,
-                                                                           controlnet=controlnet,
-                                                                           torch_dtype=torch.float16,
-                                                                           )
-            else:
-                pipe = StableDiffusionXLPipeline.from_pretrained(
-                    repo_id, torch_dtype=torch.float16, add_watermarker=False,
-                )
+                    raise "model error"
         
         if vae_id != "none":
             vae_id = folder_paths.get_full_path("vae", vae_id)
-            pipe.vae = AutoencoderKL.from_single_file(vae_id, torch_dtype=torch.float16).to(device)
+            vae_config=os.path.join(modle_config,"vae")
+            pipe.vae = AutoencoderKL.from_single_file(vae_id, config=vae_config,torch_dtype=torch.float16).to(device)
         if lora != "none":
             if lora in lora_lightning_list:
                 pipe.load_lora_weights(lora_path)
@@ -404,8 +352,8 @@ class MSdiffusion_Model_Loader:
         torch.cuda.empty_cache()
         model = {"pipe": pipe, "ms_model": ms_model, "image_encoder": image_encoder, "image_processor": image_processor,
                  "lora": lora,
-                 "trigger_words": trigger_words, "controlnet_model": controlnet_model,
-                 "image_encoder_type": image_encoder_type, "image_proj_type": image_proj_type, "use_repo": use_repo}
+                 "trigger_words": trigger_words, "controlnet_model":  controlnet_ckpt,
+                 "image_encoder_type": image_encoder_type, "image_proj_type": image_proj_type,}
         return (model,)
 
 
@@ -457,12 +405,10 @@ class MSdiffusion_Sampler:
     def main_normal(self, prompt, pipe, phrases, ms_model, input_images, num_samples, steps, seed, negative_prompt,
                     scale, image_encoder, cfg, image_processor,
                     boxes, mask_threshold, start_step, image_proj_type, image_encoder_type, drop_grounding_tokens,
-                    height, width, phrase_idxes, eot_idxes, image, use_repo):
-        if use_repo:
-            image = None
+                    height, width, phrase_idxes, eot_idxes, image, ):
         images = ms_model.generate(pipe=pipe, pil_images=[input_images], processed_images=image,
                                    num_samples=num_samples,
-                                   num_inference_steps=steps, use_repo=use_repo,
+                                   num_inference_steps=steps,
                                    seed=seed,
                                    prompt=[prompt], negative_prompt=negative_prompt, scale=scale,
                                    image_encoder=image_encoder, guidance_scale=cfg,
@@ -480,12 +426,10 @@ class MSdiffusion_Sampler:
     def main_control(self, prompt, width, height, pipe, phrases, ms_model, input_images, num_samples, steps, seed,
                      negative_prompt, scale, image_encoder, cfg,
                      image_processor, boxes, mask_threshold, start_step, image_proj_type, image_encoder_type,
-                     drop_grounding_tokens, controlnet_scale, control_image, phrase_idxes, eot_idxes, image, use_repo):
-        if use_repo:
-            image = None
+                     drop_grounding_tokens, controlnet_scale, control_image, phrase_idxes, eot_idxes, image, ):
         images = ms_model.generate(pipe=pipe, pil_images=[input_images], processed_images=image,
                                    num_samples=num_samples,
-                                   num_inference_steps=steps, use_repo=use_repo,
+                                   num_inference_steps=steps,
                                    seed=seed,
                                    prompt=[prompt], negative_prompt=negative_prompt, scale=scale,
                                    image_encoder=image_encoder, guidance_scale=cfg,
@@ -532,7 +476,6 @@ class MSdiffusion_Sampler:
         controlnet_model = model["controlnet_model"]
         image_encoder_type = model["image_encoder_type"]
         image_proj_type = model["image_proj_type"]
-        use_repo = model["use_repo"]
         if drop_grounding_tokens:
             drop_grounding_tokens = [1]  # set to 1 if you want to drop the grounding tokens
         else:
@@ -587,14 +530,14 @@ class MSdiffusion_Sampler:
                                                steps, seed, negative_prompt, scale, image_encoder, cfg,
                                                image_processor, boxes, mask_threshold, start_step, image_proj_type,
                                                image_encoder_type, drop_grounding_tokens, controlnet_scale, control_img,
-                                               phrase_idxes, eot_idxes, image, use_repo)
+                                               phrase_idxes, eot_idxes, image)
             
             else:  # no controlnet
                 image_main = self.main_normal(prompt, pipe, phrases, ms_model, input_images, batch_size, steps, seed,
                                               negative_prompt, scale, image_encoder, cfg, image_processor,
                                               boxes, mask_threshold, start_step, image_proj_type, image_encoder_type,
-                                              drop_grounding_tokens, height, width, phrase_idxes, eot_idxes, image,
-                                              use_repo)
+                                              drop_grounding_tokens, height, width, phrase_idxes, eot_idxes, image
+                                            )
         
         else:
             img_list = list(torch.chunk(image, chunks=d1))
@@ -622,14 +565,14 @@ class MSdiffusion_Sampler:
                                                steps, seed, negative_prompt, scale, image_encoder, cfg,
                                                image_processor, boxes, mask_threshold, start_step, image_proj_type,
                                                image_encoder_type, drop_grounding_tokens, controlnet_scale, control_img,
-                                               phrase_idxes, eot_idxes, image, use_repo)
+                                               phrase_idxes, eot_idxes, image)
             
             else:  # no controlnet
                 image_main = self.main_normal(prompt, pipe, phrases, ms_model, input_images, batch_size, steps, seed,
                                               negative_prompt, scale, image_encoder, cfg, image_processor,
                                               boxes, mask_threshold, start_step, image_proj_type, image_encoder_type,
-                                              drop_grounding_tokens, height, width, phrase_idxes, eot_idxes, image,
-                                              use_repo)
+                                              drop_grounding_tokens, height, width, phrase_idxes, eot_idxes, image
+                                             )
         
         output_img = []
         for i in range(batch_size):
