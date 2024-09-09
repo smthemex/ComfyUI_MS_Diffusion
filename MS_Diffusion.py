@@ -277,20 +277,7 @@ class MSdiffusion_Model_Loader:
             cn_state_dict = load_file(controlnet_path, device="cpu")
             controlnet.load_state_dict(cn_state_dict, strict=False)
             controlnet.to(torch.float16)
-            
-            try:
-                pipe = StableDiffusionXLControlNetPipeline.from_single_file(ckpt_path, config=modle_config,unet=pipe.unet,
-                                                                            controlnet=controlnet,
-                                                                            original_config=original_config_file,
-                                                                            torch_dtype=torch.float16, )
-            except:
-                try:
-                    pipe = StableDiffusionXLControlNetPipeline.from_single_file(ckpt_path, config=modle_config,unet=pipe.unet,
-                                                                                controlnet=controlnet,
-                                                                                original_config_file=original_config_file,
-                                                                                torch_dtype=torch.float16, )
-                except:
-                    raise "model error"
+            pipe=StableDiffusionXLControlNetPipeline.from_pipe(pipe,controlnet=controlnet)
         
         if vae_id != "none":
             vae_id = folder_paths.get_full_path("vae", vae_id)
