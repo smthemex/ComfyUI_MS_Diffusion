@@ -451,9 +451,27 @@ class MSdiffusion_Sampler:
         float_box = [float(x) for x in list_str]
         return float_box
     
+    def center_crop_s(self, img, new_width, new_height):
+        width, height = img.size
+        left = (width - new_width) / 2
+        top = (height - new_height) / 2
+        right = (width + new_width) / 2
+        bottom = (height + new_height) / 2
+        return img.crop((left, top, right, bottom))
+    
     def ms_sampler(self, image, model, prompt, negative_prompt, seed, steps,
                    cfg, scale, mask_threshold, start_step, controlnet_scale, width, height, batch_size,
                    drop_grounding_tokens, guidance_list, **kwargs):
+        if  width==height:
+            new_width = width
+            new_height = width
+            min_wh= width
+        else:
+            min_wh=min(width,height)
+            max_wh=max(width,height)
+            new_width = max_wh
+            new_height =max_wh
+        
         pipe = model["pipe"]
         ms_model = model["ms_model"]
         image_encoder = model["image_encoder"]
@@ -479,6 +497,11 @@ class MSdiffusion_Sampler:
         
         if '[' in prompt and ']' in prompt:
             object_prompt = extract_content_from_brackets(prompt)  # 提取prompt的object list
+            object_prompt=[i.strip() for i in object_prompt]
+            for i in object_prompt:
+                if " " in i:
+                   raise "when using [object],object must be a word,any blank in ititit will cause error."
+            object_prompt=[i for i in object_prompt ]
             unique_object_prompt = sorted(list(set(object_prompt)),
                                           key=lambda x: list(object_prompt).index(x))  # 清除同名物体,保持原有顺序
             object_num = len(unique_object_prompt)
@@ -500,7 +523,7 @@ class MSdiffusion_Sampler:
             raise "The number of objects should be equal to the number of input images"
         
         if d1 == 1:
-            input_images = [nomarl_upscale_topil(image, 512, 512)]
+            input_images = [nomarl_upscale_topil(image, min_wh, min_wh)]
             torch.cuda.empty_cache()
             if mask_threshold:  # step之前所用布局指导
                 boxes = box_add[0]
@@ -512,8 +535,8 @@ class MSdiffusion_Sampler:
             eot_idxes = [[get_eot_idx(pipe.tokenizer, prompt)] * len(phrases[0])]
             if controlnet_model != "none":
                 control_image = kwargs.get("control_image")
-                control_img = nomarl_upscale_topil(control_image, width, height)
-                image_main = self.main_control(prompt, width, height, pipe, phrases, ms_model, input_images, batch_size,
+                control_img = nomarl_upscale_topil(control_image, min_wh, min_wh)
+                image_main = self.main_control(prompt, new_width, new_height, pipe, phrases, ms_model, input_images, batch_size,
                                                steps, seed, negative_prompt, scale, image_encoder, cfg,
                                                image_processor, boxes, mask_threshold, start_step, image_proj_type,
                                                image_encoder_type, drop_grounding_tokens, controlnet_scale, control_img,
@@ -523,13 +546,13 @@ class MSdiffusion_Sampler:
                 image_main = self.main_normal(prompt, pipe, phrases, ms_model, input_images, batch_size, steps, seed,
                                               negative_prompt, scale, image_encoder, cfg, image_processor,
                                               boxes, mask_threshold, start_step, image_proj_type, image_encoder_type,
-                                              drop_grounding_tokens, height, width, phrase_idxes, eot_idxes, image
+                                              drop_grounding_tokens, new_height, new_width, phrase_idxes, eot_idxes, image
                                             )
         
         else:
             img_list = list(torch.chunk(image, chunks=d1))
             # print(img_list)
-            input_images = [nomarl_upscale_topil(img, 512, 512) for img in img_list]
+            input_images = [nomarl_upscale_topil(img, min_wh, min_wh) for img in img_list]
             # print(input_images)
             if mask_threshold:
                 if len(box_add) < d1:
@@ -547,8 +570,8 @@ class MSdiffusion_Sampler:
             eot_idxes = [[get_eot_idx(pipe.tokenizer, prompt)] * len(phrases[0])]
             if controlnet_model != "none":
                 control_image = kwargs.get("control_image")
-                control_img = nomarl_upscale_topil(control_image, width, height)  # pil
-                image_main = self.main_control(prompt, width, height, pipe, phrases, ms_model, input_images, batch_size,
+                control_img = nomarl_upscale_topil(control_image, min_wh, min_wh)  # pil
+                image_main = self.main_control(prompt, new_width, new_height, pipe, phrases, ms_model, input_images, batch_size,
                                                steps, seed, negative_prompt, scale, image_encoder, cfg,
                                                image_processor, boxes, mask_threshold, start_step, image_proj_type,
                                                image_encoder_type, drop_grounding_tokens, controlnet_scale, control_img,
@@ -558,12 +581,16 @@ class MSdiffusion_Sampler:
                 image_main = self.main_normal(prompt, pipe, phrases, ms_model, input_images, batch_size, steps, seed,
                                               negative_prompt, scale, image_encoder, cfg, image_processor,
                                               boxes, mask_threshold, start_step, image_proj_type, image_encoder_type,
-                                              drop_grounding_tokens, height, width, phrase_idxes, eot_idxes, image
+                                              drop_grounding_tokens, new_height, new_width, phrase_idxes, eot_idxes, image
                                              )
         
         output_img = []
         for i in range(batch_size):
-            output_img.append(image_main[i])
+            if width!=height:
+                output_img.append(self.center_crop_s(image_main[i], width, height))
+            else:
+                output_img.append(image_main[i])
+            
         
         image_list = narry_list(output_img)
         image = torch.from_numpy(np.fromiter(image_list, np.dtype((np.float32, (height, width, 3)))))
